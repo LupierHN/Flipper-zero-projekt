@@ -17,6 +17,10 @@ $start = Get-Date
 $timeout = 120 # Sekunden
 $debugLogContent = "[INFO] Skript gestartet: $(Get-Date -Format o)"
 
+Add-Type -AssemblyName PresentationFramework
+[System.Windows.MessageBox]::Show("Keylogger-Skript wurde gestartet!", "Flipper Logger", 'OK', 'Info')
+Start-Sleep -Seconds 5
+
 while ($true) {
     # Laufzeit prüfen
     $elapsed = (Get-Date) - $start
